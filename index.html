@@ -1,0 +1,641 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Phonker - Portfolio</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        :root {
+            /* Переменные для аккуратного кивка интерфейса под бит */
+            --beat-nod-y: 0px;
+            --beat-scale: 1;
+        }
+
+        body {
+            font-family: 'Inter', system-ui, -apple-system, sans-serif;
+            background-color: #06040a;
+            color: #ffffff;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 120px 20px 10px 20px;
+            position: relative;
+            overflow-x: hidden;
+        }
+
+        /* ИНТЕРАКТИВНЫЙ ЖИВОЙ ФОН */
+        .bg-wrapper {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: -1;
+            pointer-events: none;
+            overflow: hidden;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        /* Центральное неоновое облако */
+        .bg-glow-center {
+            position: absolute;
+            width: 75vw;
+            height: 75vw;
+            max-width: 1000px;
+            max-height: 1000px;
+            background: radial-gradient(circle, rgba(139, 92, 246, 0.2) 0%, rgba(217, 70, 239, 0.04) 50%, transparent 70%);
+            filter: blur(60px);
+            z-index: 1;
+            transform: scale(1);
+            opacity: 0.5;
+            will-change: transform, opacity;
+        }
+
+        /* Холст для волнующейся сетки */
+        #bgCanvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 2;
+            pointer-events: none;
+        }
+
+        /* КОМПОНЕНТЫ ИНТЕРФЕЙСА С ПЛАВНЫМ КИВКОМ */
+        .container {
+            width: 100%;
+            max-width: 1100px;
+            flex-grow: 1;
+            position: relative;
+            z-index: 10;
+            /* Смещение только по Y (вниз) и микро-скейл для эффекта кача головы */
+            transform: translateY(var(--beat-nod-y)) scale(var(--beat-scale));
+            will-change: transform;
+        }
+
+        header {
+            position: fixed;
+            top: 20px;
+            left: 50%;
+            /* Применяем кивок с учетом абсолютного центрирования */
+            transform: translateX(-50%) translateY(var(--beat-nod-y)) scale(var(--beat-scale));
+            width: calc(100% - 40px);
+            max-width: 1100px;
+            height: 55px;
+            background: rgba(15, 11, 26, 0.8);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid rgba(124, 58, 237, 0.25);
+            border-radius: 16px;
+            padding: 0 24px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            z-index: 100;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.6);
+            transition: top 0.3s cubic-bezier(0.25, 1, 0.5, 1);
+            will-change: transform;
+        }
+
+        header.nav-hidden { top: -75px; }
+
+        .logo-link {
+            text-decoration: none;
+            color: #ffffff;
+            font-size: 19px;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            text-shadow: 0 0 15px rgba(124, 58, 237, 0.5);
+            transition: transform 0.3s ease;
+        }
+        .logo-link:hover { transform: scale(1.02); }
+
+        nav { display: flex; align-items: center; gap: 25px; }
+        nav a {
+            color: #a5a1b8;
+            text-decoration: none;
+            font-size: 13px;
+            font-weight: 600;
+            transition: color 0.3s;
+        }
+        nav a:hover { color: #7c3aed; }
+
+        .btn-cta {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            background: #7c3aed;
+            color: #ffffff !important;
+            padding: 8px 16px;
+            border-radius: 8px;
+            font-size: 11px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(124, 58, 237, 0.3);
+        }
+        .btn-cta:hover {
+            background: #9333ea;
+            box-shadow: 0 0 25px rgba(147, 51, 234, 0.6);
+            transform: translateY(-1px);
+        }
+
+        /* Сетка комплектующих */
+        .specs-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 30px;
+            margin-bottom: 60px;
+        }
+
+        .spec-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            text-align: center;
+            cursor: default;
+        }
+
+        .icon-wrapper {
+            position: relative;
+            width: 220px; 
+            height: 180px; 
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .icon-wrapper::before {
+            content: '';
+            position: absolute;
+            width: 140px;
+            height: 110px;
+            background: radial-gradient(circle, rgba(124, 58, 237, 0.45) 0%, rgba(124, 58, 237, 0) 70%);
+            filter: blur(20px);
+            z-index: 1;
+            transition: all 0.4s ease;
+        }
+
+        .icon-wrapper img {
+            max-width: 100%;
+            max-height: 100%;
+            object-fit: contain;
+            position: relative;
+            z-index: 2;
+            transform: scale(1.15); 
+            filter: grayscale(100%) contrast(1.2) sepia(100%) hue-rotate(235deg) saturate(220%) brightness(0.75) drop-shadow(0 0 8px rgba(124, 58, 237, 0.4));
+            opacity: 0.8; 
+            transition: all 0.4s cubic-bezier(0.25, 1, 0.5, 1);
+        }
+
+        .spec-item:hover .icon-wrapper img {
+            transform: scale(1.23) translateY(-10px); 
+            filter: grayscale(100%) contrast(1.3) sepia(100%) hue-rotate(235deg) saturate(300%) brightness(0.95) drop-shadow(0 0 20px rgba(124, 58, 237, 0.8));
+            opacity: 1;
+        }
+
+        .spec-label {
+            font-size: 13px;
+            color: #8c88a5;
+            margin-bottom: 5px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        .spec-value { font-size: 18px; font-weight: 700; letter-spacing: 0.5px; }
+
+        /* Структура контента */
+        .main-layout {
+            display: flex;
+            flex-direction: column;
+            gap: 30px;
+            margin-bottom: 40px;
+        }
+
+        .top-row {
+            display: grid;
+            grid-template-columns: 1.2fr 1fr;
+            gap: 30px;
+        }
+
+        .card {
+            background-color: rgba(17, 13, 26, 0.85);
+            backdrop-filter: blur(12px);
+            border-radius: 16px;
+            padding: 18px 30px 30px 30px;
+            border: 1px solid rgba(43, 39, 64, 0.8);
+            display: flex;
+            flex-direction: column;
+            transition: all 0.3s ease;
+        }
+
+        .card:hover {
+            border-color: #7c3aed;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5), 0 0 20px rgba(124, 58, 237, 0.15);
+        }
+
+        .video-card-only {
+            background-color: #0d0b14;
+            border-radius: 16px;
+            border: 1px solid rgba(43, 39, 64, 0.8);
+            overflow: hidden;
+            display: flex;
+            position: relative;
+            transition: all 0.3s ease;
+        }
+
+        .video-card-only:hover {
+            border-color: #7c3aed;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5), 0 0 20px rgba(124, 58, 237, 0.15);
+        }
+
+        .video-player {
+            width: 100%;
+            aspect-ratio: 16 / 9;
+            object-fit: cover;
+            display: block;
+        }
+
+        .card h2 {
+            font-size: 20px;
+            font-weight: 700;
+            margin-top: 0; 
+            margin-bottom: 20px;
+            border-left: 4px solid #7c3aed;
+            padding-left: 12px;
+        }
+
+        .card p {
+            color: #94a3b8;
+            font-size: 14px;
+            line-height: 1.6;
+            margin-bottom: 25px;
+        }
+
+        .soon-text {
+            font-size: 28px;
+            font-weight: 800;
+            color: #475569;
+            letter-spacing: 3px;
+            text-transform: uppercase;
+            margin: auto;
+            text-shadow: 0 0 20px rgba(255, 255, 255, 0.02);
+            animation: pulse 2s infinite ease-in-out;
+        }
+
+        @keyframes pulse {
+            0% { opacity: 0.6; }
+            50% { opacity: 1; color: #64748b; }
+            100% { opacity: 0.6; }
+        }
+
+        .soft-item {
+            display: flex;
+            align-items: flex-start;
+            gap: 15px;
+            margin-bottom: 25px;
+        }
+
+        .soft-icon {
+            width: 48px;
+            height: 48px;
+            background-color: #201a33;
+            border-radius: 12px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            flex-shrink: 0;
+            color: #7c3aed;
+            font-size: 20px;
+            border: 1px solid rgba(124, 58, 237, 0.3);
+        }
+
+        .soft-info h3 {
+            font-size: 16px;
+            font-weight: 600;
+            margin-top: 0;
+            margin-bottom: 6px;
+            color: #ffffff;
+        }
+
+        .btn-card {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            align-self: flex-start;
+            padding: 12px 24px;
+            background: #7c3aed;
+            color: #ffffff;
+            text-decoration: none;
+            border: 1px solid #7c3aed;
+            border-radius: 8px;
+            font-size: 13px;
+            font-weight: 600;
+            transition: all 0.25s ease;
+            margin-top: auto;
+            box-shadow: 0 4px 15px rgba(124, 58, 237, 0.2);
+        }
+
+        .btn-card:hover {
+            background: #9333ea;
+            border-color: #9333ea;
+            box-shadow: 0 0 20px rgba(147, 51, 234, 0.5);
+            transform: translateY(-1px);
+        }
+
+        footer {
+            text-align: center;
+            padding: 15px 20px 10px 20px;
+            color: #475569;
+            font-size: 13px;
+            width: 100%;
+        }
+        footer a { color: #7c3aed; text-decoration: none; font-weight: 600; }
+
+        @media (max-width: 768px) {
+            body { padding-top: 100px; }
+            header { width: calc(100% - 20px); top: 10px; padding: 0 15px; height: 50px; }
+            header.nav-hidden { top: -70px; }
+            .specs-grid { grid-template-columns: 1fr; gap: 40px; }
+            .top-row { grid-template-columns: 1fr; }
+            .logo-link { font-size: 16px; }
+            nav { gap: 12px; }
+            .soon-text { margin: 40px auto; }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="bg-wrapper">
+        <div class="bg-glow-center" id="mainGlow"></div>
+        <canvas id="bgCanvas"></canvas>
+    </div>
+
+    <header id="navbar">
+        <a href="#" class="logo-link">Phonker</a>
+        <nav>
+            <a href="https://kwork.ru/user/phonker_maloletni" target="_blank">Kwork</a>
+            <a href="https://github.com/zxc16yo" target="_blank">GitHub</a>
+            <a href="https://t.me/bananas_ananass" target="_blank" class="btn-cta">
+                <i class="fa-brands fa-telegram"></i> Telegram
+            </a>
+        </nav>
+    </header>
+
+    <div class="container">
+        <section class="specs-grid">
+            <div class="spec-item">
+                <div class="icon-wrapper">
+                    <img src="gpu.png" alt="NVIDIA RTX 5070">
+                </div>
+                <div class="spec-label">Видеокарта</div>
+                <div class="spec-value">NVIDIA RTX 5070</div>
+            </div>
+
+            <div class="spec-item">
+                <div class="icon-wrapper">
+                    <img src="cpu.png" alt="AMD Ryzen 5 7500F">
+                </div>
+                <div class="spec-label">Процессор</div>
+                <div class="spec-value">AMD Ryzen 5 7500F</div>
+            </div>
+
+            <div class="spec-item">
+                <div class="icon-wrapper">
+                    <img src="ram.png" alt="32GB DDR5 RAM">
+                </div>
+                <div class="spec-label">Оперативная память</div>
+                <div class="spec-value">32GB DDR5 RAM</div>
+            </div>
+        </section>
+
+        <main class="main-layout">
+            <div class="top-row">
+                <div class="video-card-only">
+                    <video class="video-player" id="promoVideo" controls loop playsinline crossorigin="anonymous">
+                        <source src="promo.mp4" type="video/mp4">
+                        Ваш браузер не поддерживает видео.
+                    </video>
+                </div>
+
+                <div class="card">
+                    <h2>Видеомонтаж</h2>
+                    <div class="soon-text">Soon...</div>
+                </div>
+            </div>
+
+            <div class="card">
+                <h2>Разработка & Софт</h2>
+                <div class="soft-item">
+                    <div class="soft-icon">
+                        <i class="fa-solid fa-code"></i>
+                    </div>
+                    <div class="soft-info">
+                        <h3>Media Loader (Go)</h3>
+                        <p>Создал быстрый консольный загрузчик видео из YouTube на языке Go. Утилита позволяет скачивать ролики в максимальном доступном качестве, поддерживает многопоточность для высокой скорости и автоматически склеивает аудио и видеодорожки.</p>
+                    </div>
+                </div>
+                <a href="https://github.com/zxc16yo" target="_blank" class="btn-card">
+                    <i class="fa-brands fa-github"></i> Мой GitHub
+                </a>
+            </div>
+        </main>
+    </div>
+
+    <footer>
+        <p>© 2026 PHONKER. Разработано для Kwork. Связь: <a href="https://t.me/bananas_ananass" target="_blank">Telegram</a></p>
+    </footer>
+
+    <script>
+        // --- 1. Скрытие панели при скролле ---
+        let lastScrollTop = 0;
+        const navbar = document.getElementById('navbar');
+
+        window.addEventListener('scroll', function() {
+            let scrollTop = window.pageYOffset || document.documentElement.scrollTop;
+            if (scrollTop > lastScrollTop && scrollTop > 20) {
+                navbar.classList.add('nav-hidden');
+            } else if (scrollTop < lastScrollTop) {
+                navbar.classList.remove('nav-hidden');
+            }
+            lastScrollTop = scrollTop <= 0 ? 0 : scrollTop;
+        });
+
+        // --- 2. ДВИЖОК АУДИО И СГЛАЖЕННОГО КАЧА СЕТКИ ---
+        const video = document.getElementById('promoVideo');
+        const mainGlow = document.getElementById('mainGlow');
+        const canvas = document.getElementById('bgCanvas');
+        const ctx = canvas.getContext('2d');
+
+        let audioContext, analyser, source, dataArray;
+        let isInitialized = false;
+
+        let globalVolumeLerp = 0; 
+        let timeTracker = 0;
+
+        // Параметры для Beat Detection (Детектор кика / сильной доли)
+        let beatCutoff = 0;
+        let beatDecay = 0.95; 
+        let currentNodY = 0;   // Смещение вниз по Y
+        let currentScale = 1;  // Микро-сжатие
+
+        function resizeCanvas() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        }
+        window.addEventListener('resize', resizeCanvas);
+        resizeCanvas();
+
+        function initAudioAnalysis() {
+            if (isInitialized) {
+                if (audioContext && audioContext.state === 'suspended') {
+                    audioContext.resume();
+                }
+                return;
+            }
+
+            try {
+                audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                analyser = audioContext.createAnalyser();
+                
+                source = audioContext.createMediaElementSource(video);
+                source.connect(analyser);
+                analyser.connect(audioContext.destination);
+
+                analyser.fftSize = 64; 
+                dataArray = new Uint8Array(analyser.frequencyBinCount);
+
+                isInitialized = true;
+                renderVisualizerEngine();
+            } catch (e) {
+                console.warn("AudioContext ждет клика пользователя.");
+            }
+        }
+
+        function renderVisualizerEngine() {
+            requestAnimationFrame(renderVisualizerEngine);
+            
+            let targetVolume = 0;
+            let bassEnergy = 0;
+
+            if (analyser && !video.paused && !video.muted) {
+                analyser.getByteFrequencyData(dataArray);
+                
+                let sampleSum = 0;
+                const activeBars = Math.floor(dataArray.length * 0.7); 
+                for(let i = 1; i <= activeBars; i++) {
+                    sampleSum += dataArray[i];
+                }
+                targetVolume = sampleSum / (activeBars * 255);
+
+                // Слушаем плотный суб-бас и кик (индексы 1-3)
+                bassEnergy = (dataArray[1] + dataArray[2] + dataArray[3]) / 3;
+            }
+
+            // Математический Lerp для плавного дыхания
+            globalVolumeLerp += (targetVolume - globalVolumeLerp) * 0.09;
+            timeTracker += 0.012 + (globalVolumeLerp * 0.04);
+
+            // АЛГОРИТМ ОСТОРОЖНОГО КИВКА НА СИЛЬНЫЕ ДОЛИ
+            if (bassEnergy > beatCutoff && bassEnergy > 115) {
+                // Поймали сильный удар! Делаем легкий кивок вниз (диапазон 2-4px)
+                let normalizedBass = bassEnergy / 255;
+                currentNodY = normalizedBass * 4.0; 
+                currentScale = 1.0 - (normalizedBass * 0.005); // Легкое сжатие по вертикали
+
+                beatCutoff = bassEnergy; 
+            } else {
+                // Эластичный возврат блоков в нулевую точку
+                currentNodY += (0 - currentNodY) * 0.14;
+                currentScale += (1 - currentScale) * 0.14;
+
+                beatCutoff *= beatDecay;
+                if (beatCutoff < 100) beatCutoff = 100;
+            }
+
+            // Передаем CSS-переменные кивка в макет
+            document.documentElement.style.setProperty('--beat-nod-y', `${currentNodY}px`);
+            document.documentElement.style.setProperty('--beat-scale', currentScale);
+
+            // Рендерим расклеенную сетку на Canvas
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            drawUnlinkedWavingGrid(globalVolumeLerp);
+
+            // Интеллигентная пульсация неона на бэкграунде
+            let glowScale = 1 + (globalVolumeLerp * 0.25) + (currentNodY * 0.02);
+            let glowOpacity = 0.35 + (globalVolumeLerp * 0.4);
+            mainGlow.style.transform = `scale(${glowScale})`;
+            mainGlow.style.opacity = glowOpacity;
+        }
+
+        // РАСКЛЕЕННАЯ СЕТКА (Каждая координата узла колеблется независимо)
+        function drawUnlinkedWavingGrid(intensity) {
+            const gridSize = 55; 
+            
+            ctx.lineWidth = 1.0 + (intensity * 1.2);
+            let red = Math.floor(124 + (intensity * 90));
+            let blue = Math.floor(237 + (intensity * 18));
+            ctx.strokeStyle = `rgba(${red}, 58, ${blue}, ${0.07 + intensity * 0.15})`;
+
+            // Максимальная амплитуда деформации нитей сетки при перегрузе
+            let maxDeform = intensity * 22;
+
+            // Вертикальные нити сетки
+            for (let x = 0; x < canvas.width + gridSize; x += gridSize) {
+                ctx.beginPath();
+                for (let y = 0; y < canvas.height + gridSize; y += 15) {
+                    
+                    let phaseX = y * 0.005 + timeTracker + x * 0.002;
+                    let phaseY = x * 0.004 + timeTracker * 0.9 + y * 0.003;
+
+                    let waveX = Math.sin(phaseX) * Math.cos(phaseY * 0.5);
+                    let waveY = Math.cos(phaseY) * Math.sin(phaseX * 0.6);
+
+                    let xOffset = waveX * maxDeform;
+                    let yOffset = waveY * maxDeform;
+
+                    if (y === 0) ctx.moveTo(x + xOffset, y + yOffset);
+                    else ctx.lineTo(x + xOffset, y + yOffset);
+                }
+                ctx.stroke();
+            }
+
+            // Горизонтальные нити сетки
+            for (let y = 0; y < canvas.height + gridSize; y += gridSize) {
+                ctx.beginPath();
+                for (let x = 0; x < canvas.width + gridSize; x += 15) {
+                    
+                    let phaseX = y * 0.004 + timeTracker * 1.1 + x * 0.003;
+                    let phaseY = x * 0.005 + timeTracker + y * 0.002;
+
+                    let waveX = Math.sin(phaseX) * Math.sin(phaseY * 0.7);
+                    let waveY = Math.cos(phaseY) * Math.cos(phaseX * 0.5);
+
+                    let xOffset = waveX * maxDeform;
+                    let yOffset = waveY * maxDeform;
+
+                    if (x === 0) ctx.moveTo(x + xOffset, y + yOffset);
+                    else ctx.lineTo(x + xOffset, y + yOffset);
+                }
+                ctx.stroke();
+            }
+        }
+
+        if(!isInitialized) {
+            renderVisualizerEngine();
+        }
+
+        window.addEventListener('click', initAudioAnalysis);
+        video.addEventListener('play', initAudioAnalysis);
+        video.addEventListener('volumechange', initAudioAnalysis);
+    </script>
+</body>
+</html>
